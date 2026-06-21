@@ -284,6 +284,11 @@
   .foot-in a{color:var(--muted)}
   .foot-in a:hover{color:var(--signal)}
 
+  /* ---------- GITHUB LIVE FEED ---------- */
+  @keyframes gh-skel{0%,100%{opacity:.2}50%{opacity:.5}}
+  .proj-skel{pointer-events:none;animation:gh-skel 1.5s ease infinite}
+  .skel-bar{border-radius:5px;background:var(--line2);margin-bottom:10px}
+
   /* reveal */
   .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
   .reveal.in{opacity:1;transform:none}
@@ -587,7 +592,7 @@
     <h2>Things I've built &amp; published</h2>
     <p>A sample of projects and research. Everything links straight to the source.</p>
   </div>
-  <div class="work-grid">
+  <div class="work-grid" id="github-projects">
 
     <a href="https://github.com/SupratimChatterjee5/diseasedetector" target="_blank" rel="noopener" class="proj feat reveal">
       <span class="arrow">↗</span>
@@ -637,6 +642,9 @@
       <div class="ptags"><span>Signal Processing</span><span>Peer-reviewed</span></div>
     </a>
 
+  </div>
+  <div class="reveal" style="text-align:right;margin-top:20px">
+    <a href="https://github.com/SupratimChatterjee5" target="_blank" rel="noopener" class="btn btn-ghost" style="font-size:.82rem">All projects on GitHub ↗</a>
   </div>
 </section>
 
@@ -834,6 +842,40 @@
     requestAnimationFrame(animatePulse);
   }
   animatePulse();
+
+  // GitHub pinned project feed — data supplied by .github/workflows/sync-pinned.yml
+  (async function () {
+    const grid = document.getElementById('github-projects');
+    try {
+      const res = await fetch('/github-data.json');
+      if (!res.ok) throw new Error(res.status);
+      const data = await res.json();
+      const pinned = data?.data?.user?.pinnedItems?.nodes || [];
+      if (!pinned.length) return;
+      const fmt = n => n.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const ago = d => new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const cards = pinned.map((r, i) => {
+        const lang = r.primaryLanguage?.name || 'Code';
+        const topics = (r.repositoryTopics?.nodes || []).slice(0, 3).map(n => n.topic.name);
+        const stars = r.stargazerCount ? `★ ${r.stargazerCount} · ` : '';
+        return `<a href="${r.url}" target="_blank" rel="noopener" class="proj${i === 0 ? ' feat' : ''} reveal" style="transition-delay:${i * .06}s">
+          <span class="arrow">↗</span>
+          <div class="pmeta"><span class="lang">${lang}</span><span>${stars}${ago(r.pushedAt)}</span></div>
+          <h3>${fmt(r.name)}</h3><p>${r.description || ''}</p>
+          ${topics.length ? `<div class="ptags">${topics.map(t => `<span>${t}</span>`).join('')}</div>` : ''}
+        </a>`;
+      });
+      cards.push(`<a href="https://ieeexplore.ieee.org/document/10396570" target="_blank" rel="noopener" class="proj reveal" style="transition-delay:${pinned.length * .06}s">
+        <span class="arrow">↗</span>
+        <div class="pmeta"><span class="lang">IEEE Xplore · Publication</span><span>Jan 2024</span></div>
+        <h3>Automated Speaker Equalization</h3>
+        <p>Peer-reviewed paper on predicting speaker-EQ filter coefficients from frequency responses — automating what audio engineers tune by hand.</p>
+        <div class="ptags"><span>Signal Processing</span><span>Peer-reviewed</span></div>
+      </a>`);
+      grid.innerHTML = cards.join('');
+      grid.querySelectorAll('.reveal').forEach(el => io.observe(el));
+    } catch (_) { /* keep static fallback */ }
+  })();
 </script>
 </body>
 </html>
